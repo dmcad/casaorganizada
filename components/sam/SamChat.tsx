@@ -43,18 +43,56 @@ export function SamChat({ compact = false, moduleLabel }: { compact?: boolean; m
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, typing])
 
-  function send(text: string) {
+  async function send(text: string) {
     const trimmed = text.trim()
-    if (!trimmed) return
+    if (!trimmed || typing) return
     const userMsg: Message = { id: Date.now(), role: 'user', content: trimmed }
+    const history = [...messages, userMsg].map(({ role, content }) => ({ role, content }))
     setMessages((m) => [...m, userMsg])
     setInput('')
     setTyping(true)
-    setTimeout(() => {
+
+    try {
+      const res = await fetch('/api/sam', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, module: moduleLabel ?? null }),
+      })
+      if (!res.ok) throw new Error('bad status')
+
+      const contentType = res.headers.get('content-type') ?? ''
+
+      // Demo / fallback path: JSON reply.
+      if (contentType.includes('application/json')) {
+        const data = await res.json()
+        setMessages((m) => [...m, { id: Date.now() + 1, role: 'assistant', content: data.content }])
+        setTyping(false)
+        return
+      }
+
+      // Streaming path: plain-text token stream.
+      if (res.body) {
+        const id = Date.now() + 1
+        setMessages((m) => [...m, { id, role: 'assistant', content: '' }])
+        setTyping(false)
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let acc = ''
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          acc += decoder.decode(value, { stream: true })
+          setMessages((m) => m.map((msg) => (msg.id === id ? { ...msg, content: acc } : msg)))
+        }
+        return
+      }
+      throw new Error('no body')
+    } catch {
+      // Network/parse failure — fall back to the local rule-based reply.
       const reply = getSamReply(trimmed)
       setMessages((m) => [...m, { id: Date.now() + 1, role: 'assistant', content: reply.text }])
       setTyping(false)
-    }, 650)
+    }
   }
 
   return (
@@ -120,7 +158,7 @@ export function SamChat({ compact = false, moduleLabel }: { compact?: boolean; m
         <button
           type="submit"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-white transition-colors hover:bg-brand-600 disabled:opacity-50"
-          disabled={!input.trim()}
+          disabled={!input.trim() || typing}
           aria-label="Enviar"
         >
           <Send className="h-4 w-4" />

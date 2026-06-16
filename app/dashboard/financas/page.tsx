@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
 import { DEMO_BUDGET, DEMO_TRANSACTIONS } from '@/lib/demo/data'
 import { formatDate, formatEuro, cn } from '@/lib/utils'
+import { createTransaction } from '@/app/dashboard/actions'
 
 export default function FinancasPage() {
   const [open, setOpen] = useState(false)
@@ -161,30 +162,31 @@ function AddTransactionModal({ open, onClose }: { open: boolean; onClose: () => 
     <Modal open={open} onClose={onClose} title="Registar movimento">
       <form
         className="space-y-4"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault()
+          await createTransaction(new FormData(e.currentTarget))
           onClose()
         }}
       >
         <div className="grid grid-cols-2 gap-3">
-          <Select label="Tipo" defaultValue="expense">
+          <Select label="Tipo" name="type" defaultValue="expense">
             <option value="expense">Despesa</option>
             <option value="income">Receita</option>
           </Select>
-          <Input label="Valor (€)" type="number" step="0.01" placeholder="0,00" />
-          <Input label="Descrição" placeholder="Compras supermercado" />
-          <Input label="Comerciante" placeholder="Pingo Doce" />
-          <Select label="Categoria">
+          <Input label="Valor (€)" name="amount" type="number" step="0.01" placeholder="0,00" />
+          <Input label="Descrição" name="description" placeholder="Compras supermercado" />
+          <Input label="Comerciante" name="merchant" placeholder="Pingo Doce" />
+          <Select label="Categoria" name="category_id">
             {DEMO_BUDGET.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.icon} {b.name}
               </option>
             ))}
           </Select>
-          <Input label="Data" type="date" />
+          <Input label="Data" name="date" type="date" />
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" className="h-4 w-4 rounded accent-brand-500" defaultChecked />
+          <input type="checkbox" name="nif_requested" className="h-4 w-4 rounded accent-brand-500" defaultChecked />
           Pedi fatura com NIF (conta para o IRS)
         </label>
         <div className="flex justify-end gap-2">

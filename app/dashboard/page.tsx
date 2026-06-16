@@ -4,12 +4,7 @@ import { StatCard } from '@/components/dashboard/StatCard'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { MODULES, MODULE_COLOR_CLASSES, canAccess } from '@/lib/modules/registry'
-import {
-  DEMO_BUDGET,
-  DEMO_DOCUMENTS,
-  DEMO_PROFILE,
-  DEMO_TRANSACTIONS,
-} from '@/lib/demo/data'
+import { getDashboardData } from '@/lib/data/queries'
 import { daysUntil, formatDate, formatEuro, cn } from '@/lib/utils'
 
 const MODULE_STATUS: Record<string, { label: string; tone: 'muted' | 'warning' | 'danger' | 'success' }> = {
@@ -22,23 +17,25 @@ const MODULE_STATUS: Record<string, { label: string; tone: 'muted' | 'warning' |
   escola: { label: 'Propina de fevereiro: 213 €. ATL renovado.', tone: 'muted' },
 }
 
-export default function DashboardHome() {
-  const plan = DEMO_PROFILE.plan
+export default async function DashboardHome() {
+  const { profile, documents, transactions } = await getDashboardData()
+  const plan = profile.plan
 
   // Build a 30-day timeline from documents.
-  const timeline = DEMO_DOCUMENTS.map((d) => ({
-    name: d.name,
-    member: d.member_name,
-    date: d.expires_at,
-    days: daysUntil(d.expires_at),
-    module: d.module,
-  }))
+  const timeline = documents
+    .map((d) => ({
+      name: d.name,
+      member: d.member_name,
+      date: d.expires_at,
+      days: daysUntil(d.expires_at),
+      module: d.module,
+    }))
     .filter((t) => t.days !== null)
-    .sort((a, b) => (a.days! - b.days!))
+    .sort((a, b) => a.days! - b.days!)
 
   const nextDeadline = timeline.find((t) => (t.days ?? 0) >= 0) ?? timeline[0]
-  const monthSpend = DEMO_TRANSACTIONS.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const monthIncome = DEMO_TRANSACTIONS.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const monthSpend = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const monthIncome = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const irsDeduction = 847
 
   const modules = MODULES.filter((m) => m.id !== 'sam')
@@ -47,14 +44,14 @@ export default function DashboardHome() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-          Olá, família {DEMO_PROFILE.family_name} 👋
+          Olá, família {profile.family_name} 👋
         </h1>
         <p className="mt-1 text-sm text-slate-500">Aqui está o resumo da vida da sua casa hoje.</p>
       </div>
 
       {/* Metric cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Documentos guardados" value={String(DEMO_DOCUMENTS.length)} hint="2 a expirar em breve" />
+        <StatCard label="Documentos guardados" value={String(documents.length)} hint="2 a expirar em breve" />
         <StatCard label="Dedução IRS estimada" value={formatEuro(irsDeduction)} tone="brand" hint="3 faturas por validar" />
         <StatCard
           label="Próximo prazo"

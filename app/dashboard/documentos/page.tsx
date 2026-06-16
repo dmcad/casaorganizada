@@ -12,6 +12,7 @@ import { Input, Select } from '@/components/ui/Input'
 import { Alert } from '@/components/ui/Alert'
 import { DEMO_DOCUMENTS, DEMO_MEMBERS } from '@/lib/demo/data'
 import { daysUntil, deadlineLabel, formatDate } from '@/lib/utils'
+import { createDocument } from '@/app/dashboard/actions'
 import type { DocumentRecord } from '@/types/modules'
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -136,8 +137,9 @@ function AddDocumentModal({
       ) : (
         <form
           className="space-y-4"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault()
+            await createDocument(new FormData(e.currentTarget))
             onClose()
             setStep('upload')
           }}
@@ -145,25 +147,26 @@ function AddDocumentModal({
           <Alert variant="success" title="Dados extraídos">
             Confirme ou edite os campos detetados pelo SAM.
           </Alert>
+          <input type="hidden" name="module" value="documentos" />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Nome do documento" defaultValue="Cartão de Cidadão" />
-            <Select label="Categoria" defaultValue="cc">
+            <Input label="Nome do documento" name="name" defaultValue="Cartão de Cidadão" />
+            <Select label="Categoria" name="category" defaultValue="cc">
               {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
                 </option>
               ))}
             </Select>
-            <Select label="Titular" defaultValue={DEMO_MEMBERS[0].id}>
+            <Select label="Titular" name="member_id" defaultValue={DEMO_MEMBERS[0].id}>
               {DEMO_MEMBERS.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
                 </option>
               ))}
             </Select>
-            <Input label="Emissor" defaultValue="IRN" />
-            <Input label="Data de emissão" type="date" defaultValue="2016-08-01" />
-            <Input label="Validade" type="date" defaultValue="2026-08-01" />
+            <Input label="Emissor" name="issuer" defaultValue="IRN" />
+            <Input label="Data de emissão" name="issued_at" type="date" defaultValue="2016-08-01" />
+            <Input label="Validade" name="expires_at" type="date" defaultValue="2026-08-01" />
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setStep('upload')}>

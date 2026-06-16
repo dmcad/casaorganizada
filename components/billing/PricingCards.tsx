@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Check, X } from 'lucide-react'
 import { PLANS } from '@/lib/billing/plans'
 import { Badge } from '@/components/ui/Badge'
@@ -9,7 +9,33 @@ import { Button } from '@/components/ui/Button'
 import { cn, formatEuro } from '@/lib/utils'
 
 export function PricingCards() {
+  const router = useRouter()
   const [annual, setAnnual] = useState(true)
+  const [loading, setLoading] = useState<string | null>(null)
+
+  async function choosePlan(planId: 'free' | 'base' | 'pro') {
+    if (planId === 'free') {
+      router.push('/auth/register')
+      return
+    }
+    setLoading(planId)
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId, interval: annual ? 'annual' : 'monthly' }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.url) {
+        window.location.href = data.url
+        return
+      }
+      // Demo mode / Stripe not configured — start with sign-up.
+      router.push('/auth/register')
+    } finally {
+      setLoading(null)
+    }
+  }
 
   return (
     <div>
@@ -66,11 +92,14 @@ export function PricingCards() {
                 <p className="mt-1 text-xs text-brand-600">2 meses grátis incluídos</p>
               )}
 
-              <Link href="/auth/register" className="mt-6">
-                <Button variant={plan.highlight ? 'primary' : 'secondary'} className="w-full">
-                  {plan.cta}
-                </Button>
-              </Link>
+              <Button
+                variant={plan.highlight ? 'primary' : 'secondary'}
+                className="mt-6 w-full"
+                onClick={() => choosePlan(plan.id)}
+                disabled={loading === plan.id}
+              >
+                {loading === plan.id ? 'A processar…' : plan.cta}
+              </Button>
 
               <ul className="mt-6 space-y-3 text-sm">
                 {plan.features.map((f) => (

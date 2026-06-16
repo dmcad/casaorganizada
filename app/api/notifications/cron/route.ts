@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendEmail, weeklyDigestHtml, type DigestItem } from '@/lib/email/resend'
 import { daysUntil } from '@/lib/utils'
 
 export const runtime = 'nodejs'
@@ -50,5 +51,30 @@ export async function GET(req: Request) {
     await supabase.from('notifications').insert(toCreate)
   }
 
-  return NextResponse.json({ ok: true, created: toCreate.length })
+  // Weekly digest: only sends when RESEND_API_KEY is configured (otherwise no-op).
+  let emailsSent = 0
+  if (process.env.RESEND_API_KEY && toCreate.length > 0) {
+    const byUser = new Map<string, DigestItem[]>()
+    for (const n of toCreate) {
+      const list = byUser.get(n.user_id) ?? []
+      list.push({ title: n.title, detail: n.body ?? '' })
+      byUser.set(n.user_id, list)
+    }
+    for (const [userId, items] of byUser) {
+      const [{ data: auth }, { data: profile }] = await Promise.all([
+        supabase.auth.admin.getUserById(userId),
+        supabase.from('profiles').select('family_name').eq('id', userId).single(),
+      ])
+      const email = auth?.user?.email
+      if (!email) continue
+      const result = await sendEmail({
+        to: email,
+        subject: `🏠 Resumo semanal — ${items.length} ${items.length === 1 ? 'aviso' : 'avisos'}`,
+        html: weeklyDigestHtml(profile?.family_name ?? 'A sua família', items),
+      })
+      if (!('skipped' in result) && !('error' in result)) emailsSent += 1
+    }
+  }
+
+  return NextResponse.json({ ok: true, created: toCreate.length, emailsSent })
 }
