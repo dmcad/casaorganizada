@@ -32,7 +32,7 @@ export default function RegisterPage() {
     setServerError(null)
     const supabase = createClient()
     if (!supabase) {
-      router.push('/dashboard/onboarding')
+      router.push('/onboarding')
       return
     }
     const { error } = await supabase.auth.signUp({
