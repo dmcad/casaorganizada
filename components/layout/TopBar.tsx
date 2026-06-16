@@ -1,15 +1,37 @@
 'use client'
 
-import { useState } from 'react'
-import { Bell, Search } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { Bell, Search, Settings, LogOut, ChevronDown } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
-import { DEMO_NOTIFICATIONS, DEMO_PROFILE } from '@/lib/demo/data'
-import { cn } from '@/lib/utils'
+import { markNotificationsRead, signOut } from '@/app/dashboard/actions'
+import type { AppNotification, Profile } from '@/types/modules'
 
-export function TopBar() {
+export function TopBar({
+  profile,
+  notifications,
+}: {
+  profile: Profile
+  notifications: AppNotification[]
+}) {
   const [open, setOpen] = useState(false)
-  const unread = DEMO_NOTIFICATIONS.filter((n) => !n.read).length
+  const [menu, setMenu] = useState(false)
+  const [items, setItems] = useState(notifications)
+  const [, startTransition] = useTransition()
+  const unread = items.filter((n) => !n.read).length
+
+  function toggle() {
+    const opening = !open
+    setOpen(opening)
+    if (opening && unread > 0) {
+      // Optimistically mark read; persist when Supabase is configured.
+      setItems((prev) => prev.map((n) => ({ ...n, read: true })))
+      startTransition(() => {
+        void markNotificationsRead()
+      })
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md sm:px-6">
@@ -24,7 +46,7 @@ export function TopBar() {
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="relative">
           <button
-            onClick={() => setOpen((o) => !o)}
+            onClick={toggle}
             className="relative rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
             aria-label="Notificações"
           >
@@ -42,32 +64,65 @@ export function TopBar() {
               <div className="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-slate-100 p-4">
                   <p className="text-sm font-semibold text-slate-900">Notificações</p>
-                  <Badge variant="brand">{unread} novas</Badge>
+                  <Badge variant="muted">{items.length}</Badge>
                 </div>
                 <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
-                  {DEMO_NOTIFICATIONS.map((n) => (
-                    <div key={n.id} className={cn('flex gap-3 p-4', !n.read && 'bg-brand-50/40')}>
-                      <span className="mt-0.5 text-lg">
-                        {n.type === 'sam_tip' ? '🏠' : n.type === 'payment_due' ? '💶' : '🔔'}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{n.title}</p>
-                        {n.body && <p className="mt-0.5 text-xs text-slate-500">{n.body}</p>}
+                  {items.length === 0 ? (
+                    <p className="p-6 text-center text-sm text-slate-400">Sem notificações.</p>
+                  ) : (
+                    items.map((n) => (
+                      <div key={n.id} className="flex gap-3 p-4">
+                        <span className="mt-0.5 text-lg">
+                          {n.type === 'sam_tip' ? '🏠' : n.type === 'payment_due' ? '💶' : '🔔'}
+                        </span>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">{n.title}</p>
+                          {n.body && <p className="mt-0.5 text-xs text-slate-500">{n.body}</p>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </>
           )}
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-2 hover:bg-slate-100">
-          <Avatar name={DEMO_PROFILE.full_name ?? DEMO_PROFILE.family_name} />
-          <div className="hidden text-left sm:block">
-            <p className="text-sm font-medium leading-tight text-slate-900">Família {DEMO_PROFILE.family_name}</p>
-            <p className="text-xs capitalize leading-tight text-slate-400">Plano {DEMO_PROFILE.plan}</p>
-          </div>
+        <div className="relative">
+          <button
+            onClick={() => setMenu((m) => !m)}
+            className="flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-2 hover:bg-slate-100"
+          >
+            <Avatar name={profile.full_name ?? profile.family_name} src={profile.avatar_url} />
+            <div className="hidden text-left sm:block">
+              <p className="text-sm font-medium leading-tight text-slate-900">Família {profile.family_name}</p>
+              <p className="text-xs capitalize leading-tight text-slate-400">Plano {profile.plan}</p>
+            </div>
+            <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
+          </button>
+
+          {menu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
+              <div className="absolute right-0 z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1 shadow-xl">
+                <Link
+                  href="/dashboard/definicoes"
+                  onClick={() => setMenu(false)}
+                  className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <Settings className="h-4 w-4 text-slate-400" /> Definições
+                </Link>
+                <form action={signOut}>
+                  <button
+                    type="submit"
+                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <LogOut className="h-4 w-4 text-slate-400" /> Terminar sessão
+                  </button>
+                </form>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

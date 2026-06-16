@@ -1,7 +1,14 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { getAuthedUser } from '@/lib/data/queries'
+
+export async function signOut() {
+  const { supabase } = await getAuthedUser()
+  if (supabase) await supabase.auth.signOut()
+  redirect('/')
+}
 
 export interface ActionResult {
   ok: boolean

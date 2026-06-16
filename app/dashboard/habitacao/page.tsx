@@ -5,11 +5,12 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Alert } from '@/components/ui/Alert'
 import { UpgradeGate } from '@/components/billing/UpgradeGate'
 import { canAccess } from '@/lib/modules/registry'
-import { DEMO_PROFILE } from '@/lib/demo/data'
+import { getProfile } from '@/lib/data/queries'
 import { formatEuro } from '@/lib/utils'
 
-export default function HabitacaoPage() {
-  if (!canAccess(DEMO_PROFILE.plan, 'pro')) return <UpgradeGate moduleId="habitacao" />
+export default async function HabitacaoPage() {
+  const profile = await getProfile()
+  if (!canAccess(profile.plan, 'pro')) return <UpgradeGate moduleId="habitacao" />
 
   return (
     <div className="space-y-6">

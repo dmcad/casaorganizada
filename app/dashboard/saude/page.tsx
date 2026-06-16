@@ -4,10 +4,11 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { UpgradeGate } from '@/components/billing/UpgradeGate'
 import { canAccess } from '@/lib/modules/registry'
-import { DEMO_MEMBERS, DEMO_PROFILE } from '@/lib/demo/data'
+import { getProfile, getFamilyMembers } from '@/lib/data/queries'
 
-export default function SaudePage() {
-  if (!canAccess(DEMO_PROFILE.plan, 'pro')) return <UpgradeGate moduleId="saude" />
+export default async function SaudePage() {
+  const [profile, members] = await Promise.all([getProfile(), getFamilyMembers()])
+  if (!canAccess(profile.plan, 'pro')) return <UpgradeGate moduleId="saude" />
 
   return (
     <div className="space-y-6">
@@ -54,7 +55,7 @@ export default function SaudePage() {
         </Card>
       </div>
 
-      <p className="text-xs text-slate-400">{DEMO_MEMBERS.length} membros no agregado familiar.</p>
+      <p className="text-xs text-slate-400">{members.length} membros no agregado familiar.</p>
     </div>
   )
 }

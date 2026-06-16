@@ -4,11 +4,12 @@ import { Card, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { UpgradeGate } from '@/components/billing/UpgradeGate'
 import { canAccess } from '@/lib/modules/registry'
-import { DEMO_PROFILE } from '@/lib/demo/data'
+import { getProfile } from '@/lib/data/queries'
 import { formatEuro } from '@/lib/utils'
 
-export default function EscolaPage() {
-  if (!canAccess(DEMO_PROFILE.plan, 'pro')) return <UpgradeGate moduleId="escola" />
+export default async function EscolaPage() {
+  const profile = await getProfile()
+  if (!canAccess(profile.plan, 'pro')) return <UpgradeGate moduleId="escola" />
 
   return (
     <div className="space-y-6">
